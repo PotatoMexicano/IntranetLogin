@@ -1,5 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -12,26 +11,24 @@
     <Company>Equilibrio Florestal</Company>
     <PackageIcon>internet_10553633 (1).png</PackageIcon>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>none</DebugType>
     <WarningLevel>1</WarningLevel>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DebugType>none</DebugType>
     <WarningLevel>1</WarningLevel>
   </PropertyGroup>
-
   <ItemGroup>
-    <Content Include="internet_10553633.ico" />
+    <Content Include="internet_10553633.ico"/>
   </ItemGroup>
-
   <ItemGroup>
     <None Include="..\..\..\..\Users\gabriel.ac\Downloads\internet_10553633 (1).png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
-
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.9.2-ci-210"/>
+  </ItemGroup>
 </Project>

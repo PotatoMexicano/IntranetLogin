@@ -1,19 +1,27 @@
 ﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using CommandLine;
 
 namespace Intranet;
 
 class Program
 {
-    private static readonly string login = Environment.UserName;
-
     private static readonly HttpClient client = new HttpClient();
-    private static readonly IPAddress dnsAllowed = IPAddress.Parse("192.168.245.xx");
-    private static readonly string urlEnpoint = "http://192.168.245.xx/auth";
+    private static readonly IPAddress dnsAllowed = IPAddress.Parse("192.168.245.13");
+    private static readonly string urlEnpoint = "http://192.168.245.11/auth";
 
     static void Main(string[] args)
     {
+
+        string login = "";
+        string senha = "";
+
+        Parser.Default.ParseArguments<CommandLineOptions>(args)
+        .WithParsed<CommandLineOptions>(o => {
+            login = string.IsNullOrEmpty(o.login) ? Environment.UserName : o.login.ToString();
+            senha = string.IsNullOrEmpty(o.senha) ? Environment.UserName : o.senha.ToString();
+        });
 
         var hasConnection = CheckConnection();
 
@@ -26,7 +34,7 @@ class Program
         // Vamos fazer a requisição.
         var request = new HttpRequestMessage(HttpMethod.Post, urlEnpoint)
         {
-            Content = GenerateContent()
+            Content = GenerateContent(login, senha)
         };
 
         var response = client.Send(request);
@@ -62,7 +70,7 @@ class Program
         return new Ping().Send("www.google.com").Status == IPStatus.Success;
     }
     
-    private static MultipartFormDataContent GenerateContent()
+    private static MultipartFormDataContent GenerateContent(string login, string senha)
     {
         var content = new MultipartFormDataContent();
 
@@ -70,7 +78,7 @@ class Program
         var macAddress = GetLocalMacAddress() ?? throw new Exception("Não identificado MAC-ADDRESS!");
 
         content.Add(new StringContent(login), "login");
-        content.Add(new StringContent(login), "senha");
+        content.Add(new StringContent(senha), "senha");
         content.Add(new StringContent("0"), "mac_liberado");
         content.Add(new StringContent(ipAddress), "ip");
         content.Add(new StringContent(macAddress), "mac");
@@ -127,4 +135,13 @@ class Program
         return null;
     }
 
+}
+
+class CommandLineOptions
+{
+    [Option('l', "login", Required = false, HelpText = "Nome do usuário")]
+    public string login {get; set;}
+
+    [Option('p', "senha", Required = false, HelpText = "Senha do usuário")]
+    public string senha {get; set;}
 }
