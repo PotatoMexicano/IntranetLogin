@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using CommandLine;
@@ -9,7 +10,8 @@ class Program
 {
     private static readonly HttpClient client = new HttpClient();
     private static readonly IPAddress dnsAllowed = IPAddress.Parse("192.168.245.13");
-    private static readonly string urlEnpoint = "http://192.168.245.11/auth";
+    private static readonly IPAddress maskAllowed = IPAddress.Parse("255.255.255.0");
+    private static readonly string urlEnpoint = "http://192.168.245.11/auth.php";
 
     static void Main(string[] args)
     {
@@ -19,17 +21,9 @@ class Program
 
         Parser.Default.ParseArguments<CommandLineOptions>(args)
         .WithParsed<CommandLineOptions>(o => {
-            login = string.IsNullOrEmpty(o.login) ? Environment.UserName : o.login.ToString();
-            senha = string.IsNullOrEmpty(o.senha) ? Environment.UserName : o.senha.ToString();
+            login = string.IsNullOrEmpty(o.Login) ? Environment.UserName : o.Login.ToString();
+            senha = string.IsNullOrEmpty(o.Senha) ? Environment.UserName : o.Senha.ToString();
         });
-
-        var hasConnection = CheckConnection();
-
-        if (hasConnection)
-        {
-            Console.WriteLine("Usuário já conectado !");
-            Environment.Exit(0);
-        }
 
         // Vamos fazer a requisição.
         var request = new HttpRequestMessage(HttpMethod.Post, urlEnpoint)
@@ -63,11 +57,7 @@ class Program
                 }
             break;
         }
-    }
-
-    private static bool CheckConnection()
-    {
-        return new Ping().Send("www.google.com").Status == IPStatus.Success;
+    
     }
     
     private static MultipartFormDataContent GenerateContent(string login, string senha)
@@ -84,6 +74,27 @@ class Program
         content.Add(new StringContent(macAddress), "mac");
 
         return content;
+    }
+
+    public static string FormatMacAddress(string macAddress)
+    {
+        if (macAddress.Length != 12)
+        {
+            throw new ArgumentException("MAC-ADDRESS no formato incompatível");
+        }
+
+        string formattedMacAddress = "";
+        for (int i = 0; i < macAddress.Length; i += 2)
+        {
+            formattedMacAddress += macAddress.Substring(i, 2);
+
+            if (i < macAddress.Length - 2)
+            {
+                formattedMacAddress += ":";
+            }
+        }
+
+        return formattedMacAddress;
     }
 
     private static string GetLocalIpAddress()
@@ -104,44 +115,50 @@ class Program
     {
         NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
 
-        foreach(NetworkInterface adapter in interfaces)
-        {
+        var listInterfaces = interfaces.Where(x => x.OperationalStatus == OperationalStatus.Up && x.NetworkInterfaceType != NetworkInterfaceType.Loopback).ToList();
 
-            Console.Write($"Adaptador {adapter.Name}: ");
+        foreach(NetworkInterface adapter in listInterfaces)
+        {
+            if (!adapter.GetIPProperties().UnicastAddresses.Where(x => IPAddress.Equals(x.IPv4Mask, maskAllowed)).Any())
+            {
+                continue;
+            }
 
             if (adapter.OperationalStatus != OperationalStatus.Up)
             {
-                Console.WriteLine($" Não está ligado.");
                 continue;
             }
 
             if (string.IsNullOrWhiteSpace(adapter.GetPhysicalAddress().ToString()))
             {
-                Console.WriteLine($" Não tem MAC-ADDRESS.");
                 continue;
             }
 
             if (!adapter.GetIPProperties().DnsAddresses.ToList().Any(dns => IPAddress.Equals(dns, dnsAllowed)))
             {
-                Console.WriteLine(" Não possui DNS autorizado.");
+                continue;
             }
+            
+            Console.WriteLine($"Adaptador {adapter.Name}: OK");
 
-            Console.WriteLine(" OK");
-
-            return adapter.GetPhysicalAddress().ToString();
+            return FormatMacAddress(adapter.GetPhysicalAddress().ToString());
 
         }
 
         return null;
     }
 
+    private static void OpenPrograms(string user)
+    {
+        Process.Start(@$"C:\Users\{user}\AppData\Roaming\Spotify\Spotify.exe");
+    }
 }
 
 class CommandLineOptions
 {
     [Option('l', "login", Required = false, HelpText = "Nome do usuário")]
-    public string login {get; set;}
+    public string? Login {get; set;}
 
     [Option('p', "senha", Required = false, HelpText = "Senha do usuário")]
-    public string senha {get; set;}
+    public string? Senha {get; set;}
 }
